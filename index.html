@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prendre rendez-vous – Hygiène &amp; Combat</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#1d282e">
+<link rel="icon" href="https://carllemagie-afk.github.io/crm-hygiene-combat/favicon.svg">
+<link rel="preconnect" href="https://script.google.com" crossorigin>
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<script>
+  // Les créneaux sont demandés dès maintenant, avant la police et le reste de la page (gagne le temps de chargement de la page).
+  // Clé client : celle du lien, sinon celle gardée par ce navigateur lors d'une visite précédente (client reconnu même sur le lien simple).
+  window.RDV_PRECHARGE = (function () {
+    try {
+      var q = new URLSearchParams(location.search);
+      var id = (q.get('p') || location.pathname.replace(/index\.html$/, '').split('/').filter(Boolean).pop() || '').toLowerCase();
+      if (id === 'rdv' || id === 'crm-hygiene-combat') id = '';
+      if (!id || id === 'gerer') return null;
+      var cle = q.get('c') || '';
+      try { if (cle) localStorage.setItem('hc_rdv_c', cle); else cle = localStorage.getItem('hc_rdv_c') || ''; } catch (e) { /* navigation privée */ }
+      return { id: id, cle: cle, reponse: fetch('https://script.google.com/macros/s/AKfycbyi4wD91ajHJmD_goYeQZRiTgZgCQYApcerBk6cUuFYGVyEATy_SHLW0CKrnn9y20T1/exec', { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ fn: 'rdvPublicPage', args: [{ intervenant: id, client: cle }] }) }).then(function (r) { return r.json(); }) };
+    } catch (e) { return null; }
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<!--
+  Page publique de prise de rendez-vous (GitHub Pages) : https://rendez-vous.hygiene-combat.fr/ (choix), …/carl/, …/matthieu/
+  (?c=clé : client reconnu, lien envoyé dans ses e-mails), …/gerer/#jeton (annuler / déplacer). Mêmes pages, ancienne adresse,
+  sous …/crm-hygiene-combat/rdv/ (liens déjà envoyés). Construite par build.py (https://script.google.com/macros/s/AKfycbyi4wD91ajHJmD_goYeQZRiTgZgCQYApcerBk6cUuFYGVyEATy_SHLW0CKrnn9y20T1/exec, https://carllemagie-afk.github.io/crm-hygiene-combat/, https://rendez-vous.hygiene-combat.fr/ : adresse de ces pages).
+  Page déjà vue sur cet appareil : affichée tout de suite avec les créneaux gardés, puis remplacée par les créneaux à jour.
+  Un seul appel au chargement (rdvPublicPage : la personne, tous les créneaux libres, le client) : changer de semaine est instantané.
+  Appels : fonctions rdvPublic… de l'API, sans connexion.
+-->
+<style>
+  :root { --ardoise: #1d282e; --ardoise-2: #2a3840; --acier: #87a6bb; --acier-f: #4f7a96; --clair: #e6eef3; --fond: #f4f6f8; --trait: #dde5eb;
+    --texte: #1d282e; --doux: #66757e; --ok: #2f8f5b; --rouge: #c0392b; --bleu: #5c8edc; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--fond); color: var(--texte); font: 16px/1.45 "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+  .bandeau { background: var(--ardoise); color: #fff; padding: calc(14px + env(safe-area-inset-top)) 20px 64px; }
+  .bandeau .marque { max-width: 560px; margin: 0 auto; font-weight: 700; letter-spacing: 1.6px; font-size: 13px; text-transform: uppercase; }
+  main { max-width: 560px; margin: -48px auto 0; padding: 0 14px calc(120px + env(safe-area-inset-bottom)); }
+  .carte { background: #fff; border-radius: 18px; padding: 20px; box-shadow: 0 1px 2px rgba(29,40,46,.06), 0 8px 24px rgba(29,40,46,.06); margin-bottom: 14px; }
+  .profil { display: flex; gap: 14px; align-items: center; }
+  .avatar { width: 64px; height: 64px; border-radius: 50%; flex: none; object-fit: cover; background: #afdbfc; display: grid; place-items: center; font-weight: 700; font-size: 22px; }
+  h1 { font-size: 21px; line-height: 1.2; margin: 0 0 2px; letter-spacing: -.2px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--doux); margin: 0 0 12px; font-weight: 600; }
+  .doux { color: var(--doux); }
+  .petit { font-size: 14px; }
+  .puces { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .puce { background: var(--clair); color: var(--ardoise-2); border-radius: 99px; padding: 3px 10px; font-size: 13px; font-weight: 500; }
+  .bonjour { margin-top: 14px; padding: 12px 14px; background: #eef6f1; border-radius: 12px; font-size: 15px; }
+  /* Semaine */
+  .semaine { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+  .semaine b { font-size: 15px; text-align: center; flex: 1; }
+  .fleche { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--trait); background: #fff; font-size: 22px; color: var(--ardoise); cursor: pointer; flex: none; }
+  .fleche:disabled { opacity: .3; cursor: default; }
+  .jours { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+  .jour { border: 1px solid var(--trait); background: #fff; border-radius: 12px; padding: 8px 0 7px; text-align: center; cursor: pointer; color: var(--texte); font: inherit; }
+  .jour span { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--doux); }
+  .jour strong { display: block; font-size: 18px; line-height: 1.2; }
+  .jour i { display: block; font-style: normal; font-size: 10.5px; color: var(--ok); margin-top: 1px; }
+  .jour:disabled { background: transparent; border-color: transparent; color: #b8c2c8; cursor: default; }
+  .jour:disabled i { color: transparent; }
+  .jour.actif { background: var(--ardoise); border-color: var(--ardoise); color: #fff; }
+  .jour.actif span, .jour.actif i { color: #c9d6de; }
+  /* Heures et créneaux */
+  .etape { margin-top: 18px; }
+  .grille { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .heure, .creneau { border: 1px solid var(--trait); background: #fff; border-radius: 12px; min-height: 48px; font: inherit; font-weight: 600; color: var(--texte); cursor: pointer; }
+  .heure small { display: block; font-weight: 400; font-size: 11.5px; color: var(--ok); }
+  .heure.actif, .creneau.actif { background: var(--ardoise); border-color: var(--ardoise); color: #fff; }
+  .heure.actif small { color: #c9d6de; }
+  .creneaux { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .creneau:disabled { color: #b8c2c8; background: #f7f9fa; text-decoration: line-through; cursor: default; }
+  .vide { text-align: center; padding: 22px 8px; color: var(--doux); }
+  /* Confirmation */
+  .barre { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; box-shadow: 0 -6px 24px rgba(29,40,46,.12); padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); transform: translateY(110%); transition: transform .2s ease; z-index: 5; }
+  .barre.visible { transform: none; }
+  .barre .dedans { max-width: 560px; margin: 0 auto; }
+  .choisi { font-weight: 700; font-size: 17px; margin-bottom: 10px; }
+  .choisi small { display: block; font-weight: 400; font-size: 14px; color: var(--doux); }
+  .btn { display: block; width: 100%; border: 0; border-radius: 14px; background: var(--bleu); color: #fff; font: inherit; font-weight: 700; font-size: 17px; padding: 15px; cursor: pointer; text-align: center; text-decoration: none; }
+  .btn:disabled { opacity: .6; cursor: default; }
+  .btn.second { background: var(--clair); color: var(--ardoise); }
+  .btn.danger { background: #fbeceb; color: var(--rouge); }
+  .actions { display: grid; gap: 10px; margin-top: 16px; }
+  .champs { display: grid; gap: 8px; margin-bottom: 10px; }
+  .champs input { width: 100%; border: 1px solid var(--trait); border-radius: 12px; padding: 12px 13px; font: inherit; font-size: 16px; background: #fff; color: var(--texte); }
+  .champs .deux { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .piege { position: absolute; left: -9999px; }
+  .message { border-radius: 12px; padding: 11px 13px; font-size: 14.5px; margin-top: 12px; }
+  .message.erreur { background: #fbeceb; color: #8e2a20; }
+  .message.info { background: var(--clair); color: var(--ardoise-2); }
+  .fait { text-align: center; padding: 8px 0 4px; }
+  .fait .rond { width: 64px; height: 64px; border-radius: 50%; background: #e3f3ea; color: var(--ok); font-size: 34px; display: grid; place-items: center; margin: 0 auto 12px; }
+  .details { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; text-align: left; margin: 16px 0 0; font-size: 15px; }
+  .details dt { color: var(--doux); } .details dd { margin: 0; font-weight: 600; }
+  .personnes a { display: flex; gap: 14px; align-items: center; text-decoration: none; color: inherit; padding: 12px 0; border-top: 1px solid var(--trait); }
+  .personnes a:first-child { border-top: 0; }
+  .chargement { display: flex; align-items: center; gap: 10px; color: var(--doux); padding: 8px 0; }
+  .roue { width: 18px; height: 18px; border: 2px solid var(--clair); border-top-color: var(--acier-f); border-radius: 50%; animation: tour .7s linear infinite; }
+  @keyframes tour { to { transform: rotate(360deg); } }
+  .tour-petit { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--trait); border-top-color: var(--doux); border-radius: 50%; animation: tour .8s linear infinite; vertical-align: -1px; margin-right: 4px; }
+  .fantome { height: 46px; border-radius: 12px; background: linear-gradient(90deg, #eef2f4, #f7f9fa, #eef2f4); background-size: 200% 100%; animation: brille 1.2s ease infinite; }
+  @keyframes brille { to { background-position: -200% 0; } }
+  footer { text-align: center; color: var(--doux); font-size: 13px; padding: 10px 14px 30px; }
+  footer a { color: inherit; }
+  @media (min-width: 600px) { .grille { grid-template-columns: repeat(6, minmax(0, 1fr)); } .creneaux { grid-template-columns: repeat(6, minmax(0, 1fr)); } h1 { font-size: 23px; } }
+</style>
+</head>
+<body>
+<header class="bandeau"><div class="marque">Hygiène &amp; Combat</div></header>
+<main id="app">
+  <div class="carte"><div class="chargement"><div class="roue"></div>Chargement…</div></div>
+  <div class="carte"><div class="fantome"></div><div class="fantome" style="margin-top:10px"></div></div>
+</main>
+<div class="barre" id="barre"><div class="dedans" id="barreDedans"></div></div>
+<footer>Hygiène &amp; Combat · <a href="mailto:contact@hygiene-combat.fr">contact@hygiene-combat.fr</a></footer>
+<script>
+(function () {
+  const API = 'https://script.google.com/macros/s/AKfycbyi4wD91ajHJmD_goYeQZRiTgZgCQYApcerBk6cUuFYGVyEATy_SHLW0CKrnn9y20T1/exec';
+  const BASE = 'https://rendez-vous.hygiene-combat.fr/';
+  const q = new URLSearchParams(location.search);
+  const PRE = window.RDV_PRECHARGE;
+  const ID = (PRE && PRE.id) || (q.get('p') || location.pathname.replace(/index\.html$/, '').split('/').filter(Boolean).pop() || '').toLowerCase().replace(/^(rdv|crm-hygiene-combat)$/, '');
+  const CLE = q.get('c') || (PRE && PRE.cle) || '';
+  const memoire = { lire: k => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }, ecrire: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* rien */ } } };
+  const $ = s => document.querySelector(s);
+  const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const JOURS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+  const JOURS_L = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const heureParis = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const hm = ms => heureParis.format(new Date(ms)); // « 18:40 »
+  const d = jour => { const [a, m, j] = jour.split('-').map(Number); return new Date(Date.UTC(a, m - 1, j)); };
+  const cle = j => j.toISOString().slice(0, 10);
+  const plus = (jour, n) => { const x = d(jour); x.setUTCDate(x.getUTCDate() + n); return cle(x); };
+  const lundi = jour => plus(jour, -((d(jour).getUTCDay() + 6) % 7));
+  const libelleJour = jour => { const x = d(jour); return JOURS_L[x.getUTCDay()] + ' ' + x.getUTCDate() + ' ' + MOIS[x.getUTCMonth()]; };
+  const majuscule = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const aleatoire = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)).replace(/[^A-Za-z0-9-]/g, '');
+
+  /** Appel à l'API (fonctions rdvPublic…). Une coupure réseau est signalée comme telle. */
+  function api(fn, ...args) {
+    const ctrl = new AbortController();
+    const minuterie = setTimeout(() => ctrl.abort(), 45000);
+    return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn, args }), signal: ctrl.signal })
+      .then(r => r.json(), () => { throw Object.assign(new Error('Connexion impossible. Vérifiez votre connexion internet puis réessayez.'), { reseau: true }); })
+      .then(x => { clearTimeout(minuterie); if (!x.ok) throw new Error(x.erreur || 'Erreur inconnue'); return x.r; });
+  }
+  const avatar = p => p && p.photo ? '<img class="avatar" src="' + esc(p.photo) + '" alt="">'
+    : '<div class="avatar" aria-hidden="true">' + esc(String((p && p.nom) || '?').split(/\s+/).slice(0, 2).map(m => m[0] || '').join('').toUpperCase()) + '</div>';
+  const erreur = (el, texte) => { el.innerHTML = texte ? '<div class="message erreur" role="alert">' + texte + '</div>' : ''; };
+  const barre = html => { $('#barreDedans').innerHTML = html || ''; $('#barre').classList.toggle('visible', !!html); };
+  const carteProfil = (p, suite) => '<div class="carte"><div class="profil">' + avatar(p) + '<div><h1>Appel de ' + p.duree + ' min avec ' + esc(p.nom) + '</h1>' +
+    '<div class="doux petit">' + esc(p.titre ? p.titre + ' · ' : '') + 'Hygiène &amp; Combat</div>' +
+    '<div class="puces"><span class="puce">📞 ' + esc(p.prenom) + ' vous appelle</span><span class="puce">Heure de Paris</span></div></div></div>' + (suite || '') + '</div>';
+
+  /**
+   * Sélecteur : semaine (‹ ›) → jour → heure → les créneaux de 10 min de cette heure.
+   * jours = [{ jour, creneaux: [ms…] }] (tout l'horizon, déjà chargé : rien n'est rechargé en changeant de semaine).
+   */
+  function selecteur(zone, jours, surChoix) {
+    const parJour = {};
+    jours.forEach(j => { parJour[j.jour] = j.creneaux; });
+    const dispo = Object.keys(parJour).sort();
+    if (!dispo.length) { zone.innerHTML = '<div class="vide">Aucun créneau libre pour le moment. Écrivez-nous à <a href="mailto:contact@hygiene-combat.fr">contact@hygiene-combat.fr</a>.</div>'; return; }
+    const premiere = lundi(dispo[0]), derniere = lundi(dispo[dispo.length - 1]);
+    const e = { semaine: premiere, jour: '', heure: null, choix: null };
+    const choisirPremierJour = () => { e.jour = [0, 1, 2, 3, 4, 5, 6].map(i => plus(e.semaine, i)).find(j => parJour[j]) || ''; e.heure = null; e.choix = null; };
+    choisirPremierJour();
+    function dessiner() {
+      const fin = plus(e.semaine, 6);
+      const titre = d(e.semaine).getUTCMonth() === d(fin).getUTCMonth()
+        ? d(e.semaine).getUTCDate() + ' – ' + d(fin).getUTCDate() + ' ' + MOIS[d(fin).getUTCMonth()]
+        : d(e.semaine).getUTCDate() + ' ' + MOIS[d(e.semaine).getUTCMonth()] + ' – ' + d(fin).getUTCDate() + ' ' + MOIS[d(fin).getUTCMonth()];
+      let html = '<h2>1 · Choisissez un jour</h2><div class="semaine"><button class="fleche" data-sem="-7" aria-label="Semaine précédente"' + (e.semaine <= premiere ? ' disabled' : '') + '>‹</button>' +
+        '<b>Semaine du ' + titre + '</b><button class="fleche" data-sem="7" aria-label="Semaine suivante"' + (e.semaine >= derniere ? ' disabled' : '') + '>›</button></div><div class="jours">' +
+        [0, 1, 2, 3, 4, 5, 6].map(i => {
+          const j = plus(e.semaine, i), n = (parJour[j] || []).length;
+          return '<button class="jour' + (j === e.jour ? ' actif' : '') + '" data-jour="' + j + '"' + (n ? '' : ' disabled') + '><span>' + JOURS[d(j).getUTCDay()] + '</span><strong>' + d(j).getUTCDate() + '</strong><i>' + (n ? n + ' libres' : '·') + '</i></button>';
+        }).join('') + '</div>';
+      if (e.jour) {
+        const heures = {};
+        parJour[e.jour].forEach(t => { const h = hm(t).slice(0, 2); (heures[h] = heures[h] || []).push(t); });
+        html += '<div class="etape"><h2>2 · ' + esc(majuscule(libelleJour(e.jour))) + ' : choisissez une heure</h2><div class="grille">' +
+          Object.keys(heures).sort().map(h => '<button class="heure' + (h === e.heure ? ' actif' : '') + '" data-heure="' + h + '">' + Number(h) + ' h<small>' + heures[h].length + ' libres</small></button>').join('') + '</div></div>';
+        if (e.heure) {
+          const libres = heures[e.heure] || [];
+          const minutes = libres.map(t => hm(t).slice(3));
+          html += '<div class="etape"><h2>3 · Choisissez votre créneau</h2><div class="grille creneaux">' +
+            ['00', '10', '20', '30', '40', '50'].map(m => {
+              const t = libres[minutes.indexOf(m)];
+              return '<button class="creneau' + (t && t === e.choix ? ' actif' : '') + '"' + (t ? ' data-t="' + t + '"' : ' disabled') + '>' + Number(e.heure) + ':' + m + '</button>';
+            }).join('') + '</div></div>';
+        }
+      }
+      zone.innerHTML = html;
+      zone.querySelectorAll('[data-sem]').forEach(b => b.onclick = () => { e.semaine = plus(e.semaine, Number(b.dataset.sem)); choisirPremierJour(); surChoix(null); dessiner(); });
+      zone.querySelectorAll('[data-jour]').forEach(b => b.onclick = () => { e.jour = b.dataset.jour; e.heure = null; e.choix = null; surChoix(null); dessiner(); });
+      zone.querySelectorAll('[data-heure]').forEach(b => b.onclick = () => { e.heure = b.dataset.heure; e.choix = null; surChoix(null); dessiner(); zone.querySelector('.creneaux')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); });
+      zone.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { e.choix = Number(b.dataset.t); dessiner(); surChoix(e.choix, e.jour); });
+    }
+    dessiner();
+  }
+
+  // ------------------------------------------------------------------ Réservation : …/rdv/carl/(?c=clé)
+  function pageReserver(data, avertissement, cleGardee) {
+    const p = data.profil, c = data.client;
+    const telConnu = c && c.telephone;
+    $('#app').innerHTML = carteProfil(p,
+      (c ? '<div class="bonjour">Bonjour ' + esc(c.prenom || c.nom || '') + ' 👋 Choisissez votre créneau : ' + esc(p.prenom) + ' vous appellera' + (telConnu ? ' au <b>' + esc(c.telephone) + '</b>' : '') + '.</div>' : '') +
+      (data.cleInvalide && q.get('c') ? '<div class="message info">Ce lien n’est plus valable : indiquez vos coordonnées après avoir choisi votre créneau.</div>' : '')) +
+      '<div class="carte">' + (avertissement ? '<div class="message erreur" style="margin:0 0 12px">' + esc(avertissement) + '</div>' : '') + '<div id="sel"></div><div id="msg"></div></div>';
+    let choix = null, jourChoisi = '';
+    const cleResa = cleGardee || aleatoire();
+    // Lien sans clé : l'e-mail suffit (la fiche du CRM donne le reste) ; le numéro n'est utile que si nous ne l'avons pas.
+    const formulaire = !c ? '<div class="champs"><input id="f_email" type="email" placeholder="Votre e-mail" autocomplete="email" value="' + esc(memoire.lire('hc_rdv_email')) + '">' +
+        '<input id="f_tel" type="tel" placeholder="Téléphone (si nous ne l’avons pas déjà)" autocomplete="tel" value="' + esc(memoire.lire('hc_rdv_tel')) + '">' +
+        '<input id="f_site" class="piege" tabindex="-1" autocomplete="off" aria-hidden="true"></div>'
+      : !telConnu ? '<div class="champs"><input id="f_tel" type="tel" placeholder="Votre numéro de téléphone" autocomplete="tel"></div>' : '';
+    const val = id => ($('#' + id) ? $('#' + id).value.trim() : '');
+    selecteur($('#sel'), data.jours, (t, jour) => {
+      choix = t; jourChoisi = jour || jourChoisi;
+      if (!t) return barre('');
+      barre('<div class="choisi">' + esc(majuscule(libelleJour(jourChoisi))) + ' à ' + hm(t) + '<small>Appel de ' + p.duree + ' min avec ' + esc(p.prenom) + (telConnu ? ' · au ' + esc(c.telephone) : '') + '</small></div>' +
+        formulaire + '<button class="btn" id="ok">Confirmer le rendez-vous</button><div id="msgBarre"></div>');
+      $('#ok').onclick = reserver;
+    });
+    function reserver() {
+      if (!choix) return;
+      const b = $('#ok');
+      const donnees = { intervenant: p.id, debut: new Date(choix).toISOString(), cle: cleResa, client: c ? CLE : '', telephone: val('f_tel'),
+        email: val('f_email'), site: val('f_site') };
+      if (!c && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(donnees.email)) return erreur($('#msgBarre'), 'Indiquez votre adresse e-mail.');
+      if (c && !telConnu && !donnees.telephone) return erreur($('#msgBarre'), 'Indiquez le numéro auquel vous appeler.');
+      if (!c) { memoire.ecrire('hc_rdv_email', donnees.email); if (donnees.telephone) memoire.ecrire('hc_rdv_tel', donnees.telephone); }
+      // Confirmation affichée tout de suite ; l'enregistrement se termine en arrière-plan (la page revient au choix en cas de souci).
+      barre('');
+      const fin = new Date(choix + p.duree * 60000);
+      pageFaite({ libelle: libelleJour(jourChoisi) + ' à ' + hm(choix), heureFin: hm(fin.getTime()), telephone: telConnu ? c.telephone : donnees.telephone,
+        intervenant: p }, p, null, true);
+      api('rdvPublicReserver', donnees).then(r => {
+        pageFaite(r, p);
+        const jeton = String(r.gestion || '').split('#')[1];
+        if (jeton) api('rdvPublicEnvoyerMail', jeton).catch(() => {}); // e-mail envoyé en arrière-plan
+      }, err => {
+        if (/vient d’être pris|plus disponible/.test(err.message)) {
+          return api('rdvPublicPage', { intervenant: p.id, client: c ? CLE : '' }).then(x => pageReserver(x, err.message), () => pageReserver(data, err.message));
+        }
+        pageReserver(data, err.message + (err.reseau ? ' Vous pouvez réessayer : aucun doublon ne sera créé.' : ''), cleResa);
+      });
+    }
+  }
+
+  function pageFaite(r, p, titre, enCours) {
+    window.scrollTo({ top: 0 });
+    $('#app').innerHTML = '<div class="carte fait"><div class="rond">✓</div><h1>' + (titre || 'C’est noté !') + '</h1>' +
+      '<p class="doux" style="margin:4px 0 0">' + (enCours ? '<span class="tour-petit"></span> Enregistrement…'
+        : r.statut === 'Annulé' ? 'Un e-mail de confirmation de l’annulation arrive dans votre boîte.'
+        : (titre ? 'Nouveau créneau enregistré.' : 'Rendez-vous enregistré.') + ' Un e-mail récapitulatif arrive dans votre boîte.') + '</p>' +
+      '<dl class="details"><dt>Quand</dt><dd>' + esc(majuscule(r.libelle)) + ' – ' + esc(r.heureFin) + '</dd><dt>Avec</dt><dd>' + esc((r.intervenant && r.intervenant.nom) || (p && p.nom) || '') + '</dd>' +
+      '<dt>Comment</dt><dd>📞 Appel' + (r.telephone ? ' au ' + esc(r.telephone) : '') + '</dd></dl>' +
+      (r.gestion ? '<div class="actions"><a class="btn second" id="gererIci" href="' + esc(r.gestion) + '">Annuler ou déplacer</a></div>' : '') + '</div>';
+    // « Annuler ou déplacer » s'ouvre dans cette page, sans navigation (certains navigateurs intégrés aux applications, ou le CRM
+    // installé sur le téléphone, bloquaient le lien) ; l'adresse devient celle de la page de gestion.
+    const g = $('#gererIci');
+    if (g) g.onclick = e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey) return; // nouvel onglet : lien normal
+      e.preventDefault();
+      try { history.pushState(null, '', r.gestion); } catch (x) { /* adresse inchangée */ }
+      window.scrollTo({ top: 0 });
+      pageGerer(String(r.gestion).split('#')[1] || '');
+    };
+  }
+  window.addEventListener('popstate', () => location.reload()); // retour arrière après « Annuler ou déplacer » : la page d'avant
+
+  // ------------------------------------------------------------------ Gestion : …/rdv/gerer/#jeton
+  function pageGerer(jeton) {
+    if (!jeton) { $('#app').innerHTML = '<div class="carte"><div class="message erreur">Lien incomplet : utilisez le lien reçu par e-mail.</div></div>'; return; }
+    api('rdvPublicPage', { jeton }).then(data => {
+      const r = data.rdv, p = data.profil;
+      const actif = r.statut === 'Confirmé';
+      document.title = 'Mon rendez-vous – Hygiène & Combat';
+      $('#app').innerHTML = carteProfil(p) + '<div class="carte"><h2>Votre rendez-vous</h2>' +
+        (actif ? '' : '<div class="message info" style="margin:0 0 6px">Ce rendez-vous est ' + esc(r.statut.toLowerCase()) + '.</div>') +
+        '<dl class="details" style="margin-top:0"><dt>Quand</dt><dd>' + esc(majuscule(r.libelle)) + ' – ' + esc(r.heureFin) + '</dd><dt>Comment</dt><dd>📞 Appel' + (r.telephone ? ' au ' + esc(r.telephone) : '') + '</dd></dl>' +
+        (r.modifiable ? '<div class="actions"><button class="btn second" id="deplacer">Déplacer</button><button class="btn danger" id="annuler">Annuler le rendez-vous</button></div>'
+          : r.statut === 'Annulé' ? '<div class="actions"><a class="btn" href="' + esc(BASE + p.id + '/') + '">Reprendre un rendez-vous</a></div>' : '') +
+        '<div id="msg"></div></div><div id="nouveau"></div>';
+      if (!r.modifiable) return;
+      $('#annuler').onclick = () => {
+        const b = $('#annuler');
+        if (!b.dataset.sur) { b.dataset.sur = '1'; b.textContent = 'Confirmer l’annulation'; return; }
+        b.disabled = true; b.textContent = 'Annulation…';
+        api('rdvPublicAnnuler', jeton).then(x => { api('rdvPublicEnvoyerMail', jeton).catch(() => {}); pageFaite(x, p, 'Rendez-vous annulé'); },
+          e => { b.disabled = false; b.textContent = 'Annuler le rendez-vous'; erreur($('#msg'), esc(e.message)); });
+      };
+      $('#deplacer').onclick = () => {
+        const b = $('#deplacer');
+        b.disabled = true; b.textContent = 'Chargement des créneaux…';
+        api('rdvPublicPage', { jeton, creneaux: true }).then(x => {
+          b.textContent = 'Choisissez un nouveau créneau ci-dessous';
+          $('#nouveau').innerHTML = '<div class="carte"><div id="sel"></div></div>';
+          const cleDep = aleatoire();
+          let choix = null, jour = '';
+          selecteur($('#sel'), x.jours, (t, j) => {
+            choix = t; jour = j || jour;
+            if (!t) return barre('');
+            barre('<div class="choisi">' + esc(majuscule(libelleJour(jour))) + ' à ' + hm(t) + '<small>Nouveau créneau</small></div><button class="btn" id="ok">Confirmer le déplacement</button><div id="msgBarre"></div>');
+            $('#ok').onclick = () => {
+              const o = $('#ok'); o.disabled = true; o.textContent = 'Déplacement…';
+              api('rdvPublicDeplacer', jeton, new Date(choix).toISOString(), cleDep).then(y => { barre(''); api('rdvPublicEnvoyerMail', jeton).catch(() => {}); pageFaite(y, p, 'Rendez-vous déplacé'); },
+                e => { o.disabled = false; o.textContent = 'Confirmer le déplacement'; erreur($('#msgBarre'), esc(e.message)); });
+            };
+          });
+          $('#nouveau').scrollIntoView({ behavior: 'smooth' });
+        }, e => { b.disabled = false; b.textContent = 'Déplacer'; erreur($('#msg'), esc(e.message)); });
+      };
+    }, e => { $('#app').innerHTML = '<div class="carte"><div class="message erreur">' + esc(e.message) + '</div></div>'; });
+  }
+
+  // ------------------------------------------------------------------ Choix de la personne : …/rdv/
+  function pageChoix() {
+    api('rdvPublicIntervenants').then(ps => {
+      $('#app').innerHTML = '<div class="carte"><h1>Prendre rendez-vous</h1><p class="doux" style="margin:2px 0 8px">Avec qui souhaitez-vous échanger ?</p><div class="personnes">' +
+        ps.map(p => '<a href="' + esc(BASE + p.id + '/' + (CLE ? '?c=' + encodeURIComponent(CLE) : '')) + '">' + avatar(p) + '<div><b>' + esc(p.nom) + '</b><div class="doux petit">' + esc(p.titre || '') + ' · appel de ' + p.duree + ' min</div></div></a>').join('') +
+        '</div></div>';
+    }, e => { $('#app').innerHTML = '<div class="carte"><div class="message erreur">' + esc(e.message) + '</div></div>'; });
+  }
+
+  // ------------------------------------------------------------------ Démarrage
+  if (ID === 'gerer') pageGerer(decodeURIComponent(location.hash.slice(1)));
+  else if (!ID) pageChoix();
+  else {
+    // Page déjà ouverte sur cet appareil (moins de 6 h) : affichée tout de suite, créneaux passés retirés. La réservation
+    // revérifie toujours l'agenda ; les créneaux à jour remplacent ceux-ci dès leur arrivée, sauf si un créneau est déjà choisi.
+    const CLE_GARDE = 'hc_rdv_page_' + ID;
+    let dejaAffiche = false;
+    try {
+      const g = JSON.parse(memoire.lire(CLE_GARDE) || 'null');
+      if (g && g.cle === CLE && Date.now() - g.t < 6 * 3600e3 && g.data && g.data.profil) {
+        const tot = Date.now() + 15 * 60e3;
+        g.data.jours = (g.data.jours || []).map(j => ({ jour: j.jour, creneaux: j.creneaux.filter(t => t > tot) })).filter(j => j.creneaux.length);
+        document.title = 'Rendez-vous avec ' + g.data.profil.prenom + ' – Hygiène & Combat';
+        pageReserver(g.data);
+        dejaAffiche = true;
+      }
+    } catch (e) { /* page gardée illisible : on attend le serveur */ }
+    (PRE && PRE.id === ID && PRE.cle === CLE
+    ? PRE.reponse.then(x => { if (!x.ok) throw new Error(x.erreur || 'Erreur inconnue'); return x.r; }, () => api('rdvPublicPage', { intervenant: ID, client: CLE }))
+    : api('rdvPublicPage', { intervenant: ID, client: CLE })).then(data => {
+    document.title = 'Rendez-vous avec ' + data.profil.prenom + ' – Hygiène & Combat';
+    if (data.cleInvalide && !q.get('c')) memoire.ecrire('hc_rdv_c', ''); // clé gardée par le navigateur, plus valable
+    try { memoire.ecrire(CLE_GARDE, JSON.stringify({ t: Date.now(), cle: CLE, data })); } catch (e) { /* plein */ }
+    if (dejaAffiche && ($('#barre').classList.contains('visible') || !$('#sel'))) return; // créneau choisi ou réservé : on ne change pas l'écran
+    pageReserver(data);
+  }, e => {
+    if (dejaAffiche) return; // créneaux gardés déjà affichés : la réservation dira s'il y a un souci
+    $('#app').innerHTML = '<div class="carte"><h1>Page indisponible</h1><div class="message erreur">' + esc(e.message) + '</div>' +
+      '<div class="actions"><a class="btn second" href="' + esc(BASE) + '">Voir les personnes disponibles</a></div></div>';
+  });
+  }
+})();
+</script>
+</body>
+</html>

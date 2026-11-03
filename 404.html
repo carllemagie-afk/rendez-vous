@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page introuvable – Hygiène &amp; Combat</title>
+<body style="font-family:system-ui,sans-serif;padding:40px 20px;text-align:center;color:#1d282e">
+<script>
+  // …/quelquun/ (personne ajoutée après la construction des pages) : page de rendez-vous générique
+  const base = new URL('https://rendez-vous.hygiene-combat.fr/').pathname;
+  const m = location.pathname.startsWith(base) && location.pathname.slice(base.length).match(/^([a-z0-9-]+)\/?$/i);
+  if (m) location.replace('https://rendez-vous.hygiene-combat.fr/?p=' + encodeURIComponent(m[1].toLowerCase()) + location.search.replace(/^\?/, '&') + location.hash);
+</script>
+<h1 style="font-size:20px">Page introuvable</h1>
+<p><a href="https://rendez-vous.hygiene-combat.fr/">Prendre rendez-vous avec Hygiène &amp; Combat</a></p>
+</body>
+</html>
